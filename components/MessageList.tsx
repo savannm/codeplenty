@@ -8,7 +8,7 @@ import { Message } from "./ChatInterface";
 
 interface MessageListProps {
     messages: Message[];
-    messagesEndRef: RefObject<HTMLDivElement>;
+    messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
 export default function MessageList({ messages, messagesEndRef }: MessageListProps) {

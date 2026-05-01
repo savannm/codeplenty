@@ -1,4 +1,3 @@
-import Agent from "@/components/ai/Agent"
 import Navbar from "@/components/Navbar";
 import Style from "@/components/Navbar.module.css";
 import ChatInterface from "@/components/ChatInterface";

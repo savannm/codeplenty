@@ -8,7 +8,7 @@ const MAX_ITERATIONS = 5; // Safety limit
 
 interface ConversationMessage {
     role: "user" | "assistant";
-    content: string | Anthropic.ContentBlock[];
+    content: string | Anthropic.ContentBlock[] | Anthropic.ToolResultBlockParam[];
 }
 
 export async function POST(request: NextRequest) {
@@ -76,7 +76,7 @@ After using tools, provide a summary of what was done.`;
             }
 
             // Execute all tools and collect results
-            const toolResults: Anthropic.ToolResultBlock[] = [];
+            const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
             for (const toolUse of toolUseBlocks) {
                 const result = await executeTool(
