@@ -49,7 +49,7 @@ export default function Navbar() {
                         Resources <span className={styles.arrow}>▼</span>
                     </Link>
                     <div className={styles.dropdownContent}>
-                        <Link href="/AgentAi" className={styles.dropdownItem}>
+                        <Link href="/service" className={styles.dropdownItem}>
                             Agent AI
                         </Link>
                     </div>

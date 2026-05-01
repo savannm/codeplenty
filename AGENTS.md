@@ -1,3 +1,16 @@
+<!--
+  AGENTS.md — Universal AI Agent Rules File
+  
+  This is the single "Source of Truth" for ALL AI coding assistants (Antigravity, 
+  Cursor, Copilot, etc.). It contains project-specific instructions injected 
+  as system-level context at the start of every conversation.
+
+  Use this file for rules that apply to the project regardless of which tool 
+  is being used (e.g., framework versions, architecture, folder structures).
+
+  Rules defined here ensure consistent behavior across all AI sessions.
+-->
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

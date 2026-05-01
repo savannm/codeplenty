@@ -21,7 +21,215 @@
 
 ---
 
-## Setup & Installation
+---
+
+## 🗺️ How This App Works — Complete Overview for New Developers
+
+> Read this first before diving into the sections below. It explains the full picture of how all the pieces fit together.
+
+---
+
+### What This App Does
+
+This is an AI chat application built with **Next.js App Router** and the **Anthropic Claude API**. It lets users send messages to Claude and receive responses — either as a simple reply, a streamed real-time response, or via an **agentic loop** where Claude can call functions (tools) to interact with a database before responding.
+
+---
+
+### Architecture at a Glance
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   BROWSER (Client)                   │
+│                                                     │
+│   components/ChatInterface.tsx  ← User types here   │
+│   components/MessageList.tsx    ← Messages display  │
+│   lib/useChat.ts                ← Hook: state +     │
+│                                    fetch logic      │
+└───────────────┬─────────────────────────────────────┘
+                │  HTTP POST (fetch)
+                ▼
+┌─────────────────────────────────────────────────────┐
+│               NEXT.JS SERVER (API Routes)            │
+│                                                     │
+│   app/api/chat/route.ts     ← V1: Simple response  │
+│                                 V2: SSE streaming   │
+│   app/api/tools/routes.ts   ← Single tool call     │
+│   app/api/agents/route.ts   ← Agentic loop         │
+└───────────────┬─────────────────────────────────────┘
+                │  Anthropic SDK (server-side only)
+                ▼
+┌─────────────────────────────────────────────────────┐
+│                  SHARED LIBRARY (lib/)               │
+│                                                     │
+│   lib/anthropic.ts   ← Singleton Anthropic client  │
+│   lib/tools.ts       ← Tool schemas (what Claude   │
+│                          can call)                  │
+│   lib/types.ts       ← Shared TypeScript types     │
+│   lib/useChat.ts     ← React hook (client-side)    │
+└───────────────┬─────────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────┐
+│                TOOL IMPLEMENTATIONS                  │
+│                                                     │
+│   app/api/tools/database.ts  ← Handles tool calls  │
+│       handleGetUserInfo()                           │
+│       handleUpdateUserInfo()                        │
+│       handleCreateTicket()                          │
+│       executeTool()  ← Central router               │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+### The Three API Modes
+
+This app supports three different ways to call Claude. Choose based on your use case:
+
+| Mode | File | When to Use |
+|---|---|---|
+| **V1 — Simple** | `app/api/chat/route.ts` | One-shot Q&A, no tools, full response waits |
+| **V2 — Streaming** | `app/api/chat/route.ts` | Real-time token-by-token output via SSE |
+| **Single Tool** | `app/api/tools/routes.ts` | One tool call + result, no loop |
+| **Agentic Loop** | `app/api/agents/route.ts` | Multi-step reasoning + multiple tool calls |
+
+---
+
+### Full Data Flow — Simple Chat (V1)
+
+```
+User types message
+        │
+ChatInterface.tsx → calls sendMessage() from useChat.ts
+        │
+useChat.ts → POST /api/chat  { messages: [...] }
+        │
+app/api/chat/route.ts
+  → client.messages.create()  ← Anthropic API call
+  ← response.content[]        ← Claude's reply
+  → find TextBlock
+  → return { role: "assistant", content: text }
+        │
+useChat.ts → setMessages() → React re-render
+        │
+MessageList.tsx → shows new message
+```
+
+---
+
+### Full Data Flow — Streaming Chat (V2)
+
+```
+User types message
+        │
+useChat.ts → POST /api/chat
+        │
+app/api/chat/route.ts
+  → client.messages.stream()   ← Opens SSE connection
+  → ReadableStream created
+        │  (token by token)
+  "text" event fires → encodes "data: {text}\n\n" → sent to client
+  "message" event fires → encodes "data: {done:true}\n\n" → closes stream
+        │
+useChat.ts
+  → reader.read() loop
+  → each "data:" line decoded → assistantMessage accumulated
+  → setMessages() on every token → live typing effect in UI
+```
+
+---
+
+### Full Data Flow — Agentic Loop
+
+```
+User: "Look up user_123 and create a ticket"
+        │
+ChatInterface.tsx → POST /api/agents  { userMessage }
+        │
+app/api/agents/route.ts
+  → Builds conversationHistory = [{ role: "user", content: userMessage }]
+  → Loops up to MAX_ITERATIONS (10):
+  │
+  │  Iteration 1:
+  │    client.messages.create({ tools, messages: history })
+  │    Claude returns: stop_reason = "tool_use"
+  │    → toolUseBlocks found: [{ name: "get_user_info", input: { user_id: "user_123" } }]
+  │    → executeTool("get_user_info", { user_id: "user_123" })
+  │         → handleGetUserInfo("user_123") → returns JSON string
+  │    → push tool_result into history
+  │
+  │  Iteration 2:
+  │    Claude now sees tool result, decides to call "create_ticket"
+  │    → executeTool("create_ticket", { title, description, priority })
+  │    → push tool_result into history
+  │
+  │  Iteration 3:
+  │    Claude returns: stop_reason = "end_turn"
+  │    → extract final TextBlock
+  │    → return { response: finalText, iterations: 3 }
+        │
+ChatInterface.tsx → shows agent reply with iteration count
+```
+
+---
+
+### Key Files Explained
+
+| File | Role | Runs On |
+|---|---|---|
+| `lib/anthropic.ts` | Creates and exports the Anthropic SDK client. **Never import this in client components** — API key is server-only. | Server |
+| `lib/tools.ts` | Defines the tool schemas Claude sees. Each entry tells Claude what functions it can call and what parameters they take. | Server |
+| `lib/types.ts` | Shared TypeScript interfaces for `Message`, `ContentBlock`, `ToolUseBlock`, etc. | Both |
+| `lib/useChat.ts` | React custom hook. Manages `messages` state, calls the API, reads the SSE stream, and updates state token-by-token. | Client |
+| `app/api/chat/route.ts` | POST endpoint for chat. Contains both V1 (simple) and V2 (streaming) implementations. | Server |
+| `app/api/tools/routes.ts` | POST endpoint for a **single** tool call round-trip. Claude calls one tool, gets the result, and returns. No loop. | Server |
+| `app/api/agents/route.ts` | POST endpoint for the **agentic loop**. Claude can call multiple tools across multiple iterations until it reaches `end_turn`. | Server |
+| `app/api/tools/database.ts` | The tool implementation layer. `executeTool()` receives a tool name + input from Claude and dispatches to the right handler. Also holds the mock user database. | Server |
+| `components/ChatInterface.tsx` | The chat UI — input form, send button, state wiring via `useChat`. | Client |
+| `components/MessageList.tsx` | Renders the list of messages with role-based styling (user vs agent bubbles). | Client |
+
+---
+
+### How Tool Use Works (Explained Simply)
+
+1. You define tools in `lib/tools.ts` — each tool has a `name`, `description`, and `input_schema` (what parameters it takes)
+2. You pass these tool definitions to `client.messages.create({ tools: [...] })`
+3. Claude reads the descriptions and decides **if and when** to call a tool
+4. When Claude wants to call a tool, it returns a `tool_use` content block (instead of, or alongside, text)
+5. Your code receives that block, extracts the `name` and `input`, and calls `executeTool()`
+6. `executeTool()` runs the actual function and returns a JSON string result
+7. You push that result back into the conversation as a `tool_result` block
+8. Claude reads the result and continues — either calling more tools or giving a final text answer
+
+> **Key insight:** Claude never directly calls your functions. It just says "I want to call X with these inputs." Your server code executes the function and sends the result back. Claude then uses that result to form its answer.
+
+---
+
+### Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ Yes | Your API key from https://console.anthropic.com |
+
+Set in `.env.local` (never commit this file):
+```env
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxx
+```
+
+---
+
+### Common Mistakes for New Developers
+
+| Mistake | Why It's Wrong | Fix |
+|---|---|---|
+| Importing `lib/anthropic.ts` in a client component | Exposes your API key to the browser | Only use it in `app/api/**` server routes |
+| Forgetting to push `tool_result` back to history | Claude never sees the result and gets confused | Always add a `{ role: "user", content: toolResults[] }` message after tool execution |
+| Not handling `stop_reason === "tool_use"` | The loop never resolves | Check `stop_reason` before returning — only return on `"end_turn"` |
+| Using `NextResponse.json()` for SSE streaming | Buffered — won't stream | Use `new Response(readableStream, { headers: { "Content-Type": "text/event-stream" } })` |
+| Setting `MAX_ITERATIONS` too high | Runaway loops = expensive API bills | Keep it at 5–10; always have a hard cap |
+
+---
+
 
 ### 1. Install Dependencies
 
