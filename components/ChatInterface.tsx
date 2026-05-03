@@ -40,6 +40,7 @@
  */
 
 "use client";
+import Image from "next/image";
 
 import { useState, useRef, useEffect } from "react";
 import MessageList from "./MessageList";
@@ -114,10 +115,10 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex flex-col h-full max-w-2xl mx-auto p-4">
+        <div className="flex flex-col h-full max-w-2xl mx-auto p-4" style={{ backgroundColor: "#444444", borderRadius: "20px" }}>
             {/* MessageList handles all message bubble rendering */}
             <MessageList messages={messages} messagesEndRef={messagesEndRef} />
-
+            <div className="flex justify-end pb-2"><Image src="/profile.png" alt="profile" width={70} height={70} loading="eager" /></div>
             <form onSubmit={handleSubmit} className="flex gap-2">
                 <input
                     type="text"
