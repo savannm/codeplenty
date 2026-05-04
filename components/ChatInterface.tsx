@@ -115,7 +115,7 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex flex-col h-full max-w-2xl mx-auto p-4" style={{ backgroundColor: "#444444", borderRadius: "20px" }}>
+        <div className="flex flex-col h-full max-w-2xl mx-auto p-4" style={{ backgroundColor: "#dfdfdf", borderRadius: "20px" }}>
             {/* MessageList handles all message bubble rendering */}
             <MessageList messages={messages} messagesEndRef={messagesEndRef} />
             <div className="flex justify-end pb-2"><Image src="/profile.png" alt="profile" width={70} height={70} loading="eager" /></div>
@@ -126,7 +126,7 @@ export default function ChatInterface() {
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Ask the agent to do something..."
                     disabled={isLoading}
-                    className="flex-1 px-4 py-2 border rounded-lg"
+                    className="flex-1 px-4 py-2 border rounded-lg border-gray-400 text-black"
                 />
                 <button
                     type="submit"

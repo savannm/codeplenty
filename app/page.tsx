@@ -10,7 +10,7 @@ export default function Home() {
       <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
         <main className="flex flex-1 w-full max-w-3xl flex-row items-center justify-between  justify-center align-center">
 
-          <div className="w-1/2 h-[50vh] overflow-auto"><ChatInterface /></div>
+          <div className=" h-[50vh] sm:w-5/6 md:w-1/2 overflow-auto"><ChatInterface /></div>
         </main>
       </div>
     </>
